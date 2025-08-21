@@ -2,6 +2,9 @@ import requests
 import pandas as pd
 import streamlit as st
 
+BOT_TOKEN = "8381895106:AAEr93DHIwGEEZLlGKKtILuWucUlp0uprEY"
+CHAT_ID = "1527225659"
+
 # 获取 OKX 最新价格
 @st.cache_data(ttl=60)
 def fetch_prices():
@@ -40,3 +43,16 @@ def build_portfolio(holdings, prices):
     merged["pnl_$"] = merged["current_value"] - merged["cost"]
     merged["pnl_%"] = (merged["pnl_$"] / merged["cost"]) * 100
     return merged
+
+
+
+def send_alert(msg: str):
+    """
+    发送 Telegram 警报
+    """
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    data = {"chat_id": CHAT_ID, "text": msg}
+    try:
+        requests.post(url, data=data)
+    except Exception as e:
+        print(f"⚠️ Telegram 警报发送失败: {e}")
