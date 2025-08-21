@@ -23,21 +23,6 @@ except Exception as e:
     st.error("❌ 无法读取 Google Sheet，请检查链接或网络。")
     st.stop()
 
-# ========== 获取最新价格函数 ==========
-@st.cache_data(ttl=60)
-def fetch_prices():
-    url = "https://www.okx.com/api/v5/market/tickers?instType=SPOT"
-    try:
-        r = requests.get(url)
-        data = r.json()["data"]
-        df = pd.DataFrame(data)
-        df = df[["instId", "last"]]
-        df["last"] = df["last"].astype(float)
-        return df
-    except:
-        st.warning("⚠️ 无法获取 OKX 实时价格，将使用买入价作为参考")
-        return pd.DataFrame(columns=["instId", "last"])
-
 prices = fetch_prices()
 portfolio = build_portfolio(holdings, prices)
 

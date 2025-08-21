@@ -7,15 +7,29 @@ import streamlit as st
 def fetch_prices():
     url = "https://www.okx.com/api/v5/market/tickers?instType=SPOT"
     try:
-        r = requests.get(url)
-        data = r.json()["data"]
+        r = requests.get(url, timeout=10)
+        r.raise_for_status()
+        data = r.json().get("data", [])
+        if not data:
+            st.warning("⚠️ OKX API 返回空数据，将使用买入价代替")
+            return pd.DataFrame(columns=["instId", "last"])
+        
         df = pd.DataFrame(data)
-        df = df[["instId", "last"]]
-        df["last"] = df["last"].astype(float)
+        if "instId" not in df.columns or "last" not in df.columns:
+            st.warning("⚠️ OKX 返回数据格式异常，将使用买入价代替")
+            return pd.DataFrame(columns=["instId", "last"])
+
+        df = df[["instId", "last"]].copy()
+        # 强制转换为数字，非数字变 NaN
+        df["last"] = pd.to_numeric(df["last"], errors="coerce")
+        # 删除 NaN（异常数据）
+        df = df.dropna(subset=["last"])
         return df
-    except:
-        st.warning("⚠️ 无法获取 OKX 实时价格，将使用买入价代替")
+
+    except Exception as e:
+        st.warning(f"⚠️ 无法获取 OKX 实时价格，将使用买入价代替 ({e})")
         return pd.DataFrame(columns=["instId", "last"])
+
 
 # 构建组合数据
 def build_portfolio(holdings, prices):
