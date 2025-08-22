@@ -32,11 +32,13 @@ portfolio = build_portfolio(holdings, prices)
 portfolio = pd.merge(holdings, prices, left_on="symbol", right_on="instId", how="left")
 portfolio["current_value"] = portfolio["amount"] * portfolio["last"]
 portfolio["cost"] = portfolio["amount"] * portfolio["buy_price"]
+
+# ✅ 盈亏金额
 portfolio["pnl_$"] = portfolio["current_value"] - portfolio["cost"]
 
-# 避免除以 0
+# ✅ 盈亏百分比（0成本空投 → 直接算为100%）
 portfolio["pnl_%"] = portfolio.apply(
-    lambda row: (row["pnl_$"] / row["cost"] * 100) if row["cost"] > 0 else None,
+    lambda row: (row["pnl_$"] / row["cost"] * 100) if row["cost"] > 0 else 100.0,
     axis=1
 )
 
@@ -46,17 +48,11 @@ st.dataframe(portfolio[["symbol", "amount", "buy_price", "last",
 
 # Top5
 st.subheader("📉 涨跌幅排行榜")
-top_gainers = portfolio.sort_values("pnl_%", ascending=False).reset_index(drop=True).head(5)
-top_losers = portfolio.sort_values("pnl_%", ascending=True).reset_index(drop=True).head(5)
-
-# 加入排名（从1开始）
-top_gainers.index = top_gainers.index + 1
-top_losers.index = top_losers.index + 1
+top_gainers = portfolio[portfolio["pnl_%"].notnull()].sort_values("pnl_%", ascending=False).head(5)
+top_losers = portfolio[portfolio["pnl_%"].notnull()].sort_values("pnl_%", ascending=True).head(5)
 
 col1, col2 = st.columns(2)
 with col1:
-    st.markdown("**🚀 涨幅 Top 5**")
-    st.bar_chart(top_gainers["pnl_%"])
+    st.bar_chart(top_gainers.set_index("symbol")["pnl_%"])
 with col2:
-    st.markdown("**📉 跌幅 Top 5**")
-    st.bar_chart(top_losers["pnl_%"])
+    st.bar_chart(top_losers.set_index("symbol")["pnl_%"])
