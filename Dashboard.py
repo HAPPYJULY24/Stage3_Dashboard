@@ -27,40 +27,6 @@ except Exception as e:
 prices = fetch_prices()
 portfolio = build_portfolio(holdings, prices)
 
-def check_and_alert(holdings_df, threshold=100):
-    """
-    检查涨幅超过 threshold 的币种，并发送警报
-    holdings_df: 持仓表，包含 symbol, amount, buy_price
-    threshold: 警报阈值（百分比）
-    """
-    # 拿到 OKX 最新价格
-    price_df = fetch_prices()  # instId, last
-    price_map = dict(zip(price_df["instId"], price_df["last"]))
-
-    for _, row in holdings_df.iterrows():
-        symbol = row["symbol"]
-        amount = row["amount"]
-        buy_price = row["buy_price"]
-
-        current_price = price_map.get(symbol)
-        if current_price is None:
-            continue  # API 没有返回这个币种，跳过
-
-        cost = amount * buy_price
-        value = amount * current_price
-        profit = value - cost
-        gain_pct = (value / cost - 1) * 100
-
-        if gain_pct >= threshold:
-            msg = (
-                f"🚨 Dust Hunters Alert 🚨\n"
-                f"币种：{symbol}\n"
-                f"涨幅：+{gain_pct:.2f}%\n"
-                f"当前价值：${value:.2f}\n"
-                f"收益：+{profit:.2f}"
-            )
-            send_alert(msg)
-
 # ========== 数据预处理 ==========
 holdings = pd.read_csv(SHEET_URL)
 holdings["amount"] = pd.to_numeric(holdings["amount"], errors="coerce")
@@ -86,10 +52,10 @@ col4.metric("🔥 总盈亏百分比", f"{pnl_percent:.2f}%")
 
 st.markdown("---")
 
-# ========== 持仓分布 ==========
-st.subheader("持仓分布")
+# ---- 持仓分布饼图（基于当前价值） ----
+st.subheader("📌 持仓分布（按当前市值）")
 pie_data = portfolio.groupby("symbol")["current_value"].sum().reset_index()
-fig_pie = px.pie(pie_data, values="current_value", names="symbol", hole=0.4)
+fig_pie = px.pie(pie_data, names="symbol", values="current_value", hole=0.4, title="Portfolio Allocation")
 st.plotly_chart(fig_pie, use_container_width=True)
 
 st.markdown("---")
@@ -104,8 +70,8 @@ top_losers = portfolio.sort_values("pnl_percent", ascending=True).head(3)
 col1, col2 = st.columns(2)
 with col1:
     st.markdown("**🚀 涨幅 Top 3**")
-    st.table(top_gainers[["symbol", "pnl_percent"]].round(2))
+    st.table(top_gainers[["symbol", "pnl_percent", "current_value"]].round(2))
 
 with col2:
     st.markdown("**📉 跌幅 Top 3**")
-    st.table(top_losers[["symbol", "pnl_percent"]].round(2))
+    st.table(top_losers[["symbol", "pnl_percent", "current_value"]].round(2))
