@@ -75,3 +75,54 @@ with col1:
 with col2:
     st.markdown("**📉 跌幅 Top 3**")
     st.table(top_losers[["symbol", "pnl_percent", "current_value"]].round(2))
+
+
+# ========== 新增全局指标 ==========
+
+st.markdown("---")
+st.header("🌍 全局总览")
+
+# 1. 组合价值曲线 (Net Worth Over Time)
+st.subheader("💹 组合价值曲线")
+# 如果你有历史数据，可以替换这里
+net_worth = pd.DataFrame({
+    "date": pd.date_range(end=pd.Timestamp.today(), periods=7),
+    "value": [current_value * (1 + i*0.01) for i in range(7)]  # 占位数据：每天+1%
+})
+fig_networth = px.line(net_worth, x="date", y="value", title="Net Worth Over Time")
+st.plotly_chart(fig_networth, use_container_width=True)
+
+
+# 2. 24h 盈亏曲线
+st.subheader("⏱️ 过去24h 盈亏曲线")
+if "change24h" in prices.columns:  # 假设 fetch_prices() 有返回24h涨跌幅
+    portfolio["pnl_24h"] = portfolio["current_value"] * portfolio["change24h"] / 100
+    df_24h = portfolio.groupby("symbol")["pnl_24h"].sum().reset_index()
+    fig_24h = px.bar(df_24h, x="symbol", y="pnl_24h", title="24h PnL by Asset")
+    st.plotly_chart(fig_24h, use_container_width=True)
+else:
+    st.info("⚠️ 24h 涨跌数据未提供，需在 fetch_prices() 中加入。")
+
+
+# 3. 最大回撤 + 稳定币占比
+st.subheader("⚠️ 风险提示")
+# 最大回撤 (用上面 net_worth 占位曲线计算)
+cum_max = net_worth["value"].cummax()
+drawdown = (net_worth["value"] - cum_max) / cum_max
+max_drawdown = drawdown.min()
+
+stablecoins = ["USDT", "USDC", "BUSD", "DAI", "TUSD"]
+stable_value = portfolio[portfolio["symbol"].isin(stablecoins)]["current_value"].sum()
+stable_ratio = stable_value / current_value * 100 if current_value > 0 else 0
+
+col1, col2 = st.columns(2)
+col1.metric("📉 最大回撤", f"{max_drawdown:.2%}")
+col2.metric("💵 稳定币占比", f"{stable_ratio:.2f}%")
+
+
+# 4. 贡献度图表
+st.subheader("📊 币种盈亏贡献")
+portfolio["pnl"] = (portfolio["last"] - portfolio["buy_price"]) * portfolio["amount"]
+contrib = portfolio.groupby("symbol")["pnl"].sum().reset_index()
+fig_contrib = px.bar(contrib, x="symbol", y="pnl", title="PnL Contribution by Asset")
+st.plotly_chart(fig_contrib, use_container_width=True)
