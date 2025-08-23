@@ -110,29 +110,36 @@ if "change24h_percent" in prices.columns:
     # 按 symbol 汇总
     df_24h = portfolio.groupby("symbol")[["pnl_24h", "is_airdrop"]].sum().reset_index()
 
-    # 用折线图替代柱状图
-    fig_24h = px.line(
-        df_24h, 
-        x="symbol", 
-        y="pnl_24h", 
-        markers=True,
+    # 颜色：亏损浅红，盈利绿色
+    df_24h["color"] = df_24h["pnl_24h"].apply(lambda x: "lightcoral" if x < 0 else "lightgreen")
+
+    # 柱状图
+    fig_24h = px.bar(
+        df_24h,
+        x="symbol",
+        y="pnl_24h",
+        color="color",
+        color_discrete_map="identity",  # 直接用 df_24h["color"]
         title="24h PnL by Asset (含空投识别)"
     )
 
-    # 空投币种标记
+    # 空投标记
     airdrops = df_24h[df_24h["is_airdrop"] > 0]
     for _, row in airdrops.iterrows():
         fig_24h.add_annotation(
-            x=row["symbol"], 
-            y=row["pnl_24h"], 
-            text="🎁 空投", 
-            showarrow=True, 
-            arrowhead=2
+            x=row["symbol"],
+            y=row["pnl_24h"],
+            text="🎁 空投",
+            showarrow=True,
+            arrowhead=2,
+            font=dict(color="black", size=12, family="Arial")
         )
 
     st.plotly_chart(fig_24h, use_container_width=True)
+
 else:
     st.info("⚠️ 24h 涨跌数据未提供，需在 fetch_prices() 中加入。")
+
 
 
 
