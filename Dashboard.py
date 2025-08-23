@@ -95,10 +95,41 @@ st.plotly_chart(fig_networth, use_container_width=True)
 
 # 2. 24h 盈亏曲线
 st.subheader("⏱️ 过去24h 盈亏曲线")
-if "change24h_percent" in prices.columns:  # <-- 改这里
-    portfolio["pnl_24h"] = portfolio["current_value"] * portfolio["change24h_percent"] / 100
-    df_24h = portfolio.groupby("symbol")["pnl_24h"].sum().reset_index()
-    fig_24h = px.bar(df_24h, x="symbol", y="pnl_24h", title="24h PnL by Asset")
+
+# 识别空投：buy_price = 0
+portfolio["is_airdrop"] = portfolio["buy_price"].astype(float) == 0
+
+if "change24h_percent" in prices.columns:  
+    # 普通币种：用成本计算 24h PnL
+    portfolio["pnl_24h"] = portfolio.apply(
+        lambda row: row["current_value"] * row["change24h_percent"] / 100 
+        if not row["is_airdrop"] else row["current_value"],  # 空投直接取当前价值作为 PnL
+        axis=1
+    )
+
+    # 按 symbol 汇总
+    df_24h = portfolio.groupby("symbol")[["pnl_24h", "is_airdrop"]].sum().reset_index()
+
+    # 用折线图替代柱状图
+    fig_24h = px.line(
+        df_24h, 
+        x="symbol", 
+        y="pnl_24h", 
+        markers=True,
+        title="24h PnL by Asset (含空投识别)"
+    )
+
+    # 空投币种标记
+    airdrops = df_24h[df_24h["is_airdrop"] > 0]
+    for _, row in airdrops.iterrows():
+        fig_24h.add_annotation(
+            x=row["symbol"], 
+            y=row["pnl_24h"], 
+            text="🎁 空投", 
+            showarrow=True, 
+            arrowhead=2
+        )
+
     st.plotly_chart(fig_24h, use_container_width=True)
 else:
     st.info("⚠️ 24h 涨跌数据未提供，需在 fetch_prices() 中加入。")
