@@ -2,8 +2,8 @@ import requests
 import pandas as pd
 import streamlit as st
 
-BOT_TOKEN = "8381895106:AAEr93DHIwGEEZLlGKKtILuWucUlp0uprEY"
-CHAT_ID = "1527225659"
+BOT_TOKEN = "8381895106:AAEr93DHIwGEEZLlGKKtILuWucUlp0uprEY"  #TG BOT
+CHAT_ID = "1527225659" #TG USER ID
 
 # 获取 OKX 最新价格
 @st.cache_data(ttl=60)
@@ -19,20 +19,27 @@ def fetch_prices():
         
         df = pd.DataFrame(data)
 
-        # 确认必要字段是否存在
-        required_cols = {"instId", "last", "open24h"}
-        if not required_cols.issubset(df.columns):
+        # 打印调试用，看看实际字段
+        print("✅ OKX 返回字段:", df.columns.tolist())
+
+        # 兼容字段名（有些可能是 open24h，有些是 open24H）
+        open_col = None
+        for c in df.columns:
+            if c.lower() == "open24h":
+                open_col = c
+                break
+        
+        if not {"instId", "last"}.issubset(df.columns) or open_col is None:
             st.warning("⚠️ OKX 返回数据缺少 last/open24h，将使用买入价代替")
             return pd.DataFrame(columns=["instId", "last", "open24h", "change24h_percent"])
 
         # 只保留需要的列
-        df = df[["instId", "last", "open24h"]].copy()
+        df = df[["instId", "last", open_col]].copy()
+        df = df.rename(columns={open_col: "open24h"})
 
-        # 强制转换为数字
+        # 转换数值
         df["last"] = pd.to_numeric(df["last"], errors="coerce")
         df["open24h"] = pd.to_numeric(df["open24h"], errors="coerce")
-
-        # 删除 NaN（异常数据）
         df = df.dropna(subset=["last", "open24h"])
 
         # 计算 24h 涨跌幅
