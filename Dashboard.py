@@ -107,6 +107,12 @@ if "change24h_percent" in prices.columns:
         axis=1
     )
 
+    # ✅ 用户选择是否包含空投
+    show_airdrops = st.checkbox("显示空投币种 🎁", value=False)
+
+    if not show_airdrops:
+        portfolio = portfolio[~portfolio["is_airdrop"]]  # 去掉空投
+
     # 按 symbol 汇总
     df_24h = portfolio.groupby("symbol")[["pnl_24h", "is_airdrop"]].sum().reset_index()
 
@@ -119,21 +125,22 @@ if "change24h_percent" in prices.columns:
         x="symbol",
         y="pnl_24h",
         color="color",
-        color_discrete_map="identity",  # 直接用 df_24h["color"]
-        title="24h PnL by Asset (含空投识别)"
+        color_discrete_map="identity",
+        title="24h PnL by Asset"
     )
 
-    # 空投标记
-    airdrops = df_24h[df_24h["is_airdrop"] > 0]
-    for _, row in airdrops.iterrows():
-        fig_24h.add_annotation(
-            x=row["symbol"],
-            y=row["pnl_24h"],
-            text="🎁 空投",
-            showarrow=True,
-            arrowhead=2,
-            font=dict(color="black", size=12, family="Arial")
-        )
+    # 如果用户选择显示空投，加标记
+    if show_airdrops:
+        airdrops = df_24h[df_24h["is_airdrop"] > 0]
+        for _, row in airdrops.iterrows():
+            fig_24h.add_annotation(
+                x=row["symbol"],
+                y=row["pnl_24h"],
+                text="🎁 空投",
+                showarrow=True,
+                arrowhead=2,
+                font=dict(color="black", size=12, family="Arial")
+            )
 
     st.plotly_chart(fig_24h, use_container_width=True)
 
