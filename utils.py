@@ -1,9 +1,16 @@
 import requests
 import pandas as pd
 import streamlit as st
+import os
+from dotenv import load_dotenv
 
-BOT_TOKEN = "8381895106:AAEr93DHIwGEEZLlGKKtILuWucUlp0uprEY"  #TG BOT
-CHAT_ID = "1527225659" #TG USER ID
+# 读取 .env 配置
+load_dotenv()
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
+CMC_API_KEY = os.getenv("CMC_API_KEY")
+
 
 # ========== OKX 实时价格 ==========
 @st.cache_data(ttl=60)
@@ -24,7 +31,7 @@ def fetch_okx_prices():
         df["change24h_percent"] = (df["last"] - df["open24h"]) / df["open24h"] * 100
         df["source"] = "OKX"
 
-        # 提取基础币
+        # 提取基础币 symbol
         df["symbol"] = df["instId"].str.split("-").str[0]
         return df
 
@@ -35,9 +42,9 @@ def fetch_okx_prices():
 
 # ========== CoinMarketCap 数据抓取 ==========
 @st.cache_data(ttl=300)
-def fetch_cmc_prices(api_key: str, limit: int = 500):
+def fetch_cmc_prices(limit: int = 500):
     url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest"
-    headers = {'X-CMC_PRO_API_KEY': api_key}
+    headers = {'X-CMC_PRO_API_KEY': CMC_API_KEY}
     params = {'start': '1', 'limit': str(limit), 'convert': 'USD'}
     try:
         r = requests.get(url, headers=headers, params=params, timeout=10)
@@ -63,17 +70,18 @@ def fetch_cmc_prices(api_key: str, limit: int = 500):
 
 
 # ========== 合并 OKX + CMC ==========
-def fetch_all_prices(cmc_api_key: str):
+def fetch_all_prices():
     df_okx = fetch_okx_prices()
-    df_cmc = fetch_cmc_prices(cmc_api_key)
+    df_cmc = fetch_cmc_prices()
     df_all = pd.concat([df_okx, df_cmc], ignore_index=True)
     return df_all
 
 
 # 构建组合数据
 def build_portfolio(holdings, prices):
-    merged = pd.merge(holdings, prices, left_on="symbol", right_on="instId", how="left")
-    merged["last"] = merged["last"].fillna(merged["buy_price"])  # 修正 chained assignment
+    # 用 symbol 对齐，而不是 instId
+    merged = pd.merge(holdings, prices, on="symbol", how="left")
+    merged["last"] = merged["last"].fillna(merged["buy_price"])
     merged["current_value"] = merged["amount"] * merged["last"]
     merged["cost"] = merged["amount"] * merged["buy_price"]
     merged["pnl_$"] = merged["current_value"] - merged["cost"]
@@ -81,11 +89,8 @@ def build_portfolio(holdings, prices):
     return merged
 
 
-
+# ========== Telegram 警报 ==========
 def send_alert(msg: str):
-    """
-    发送 Telegram 警报
-    """
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     data = {"chat_id": CHAT_ID, "text": msg}
     try:

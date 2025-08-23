@@ -1,0 +1,36 @@
+# ========== Python ==========
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# ========== 系统文件 ==========
+.DS_Store
+Thumbs.db
+
+# ========== 日志 & 缓存 ==========
+*.log
+*.sqlite3
+*.db
+*.cache
+*.pid
+
+# ========== 环境变量 ==========
+.env
+.env.local
+*.secret
+*.token
+
+# ========== IDE & 编辑器 ==========
+.vscode/
+.idea/
+*.swp
