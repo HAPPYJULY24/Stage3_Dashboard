@@ -95,13 +95,14 @@ st.plotly_chart(fig_networth, use_container_width=True)
 
 # 2. 24h 盈亏曲线
 st.subheader("⏱️ 过去24h 盈亏曲线")
-if "change24h" in prices.columns:  # 假设 fetch_prices() 有返回24h涨跌幅
-    portfolio["pnl_24h"] = portfolio["current_value"] * portfolio["change24h"] / 100
+if "change24h_percent" in prices.columns:  # <-- 改这里
+    portfolio["pnl_24h"] = portfolio["current_value"] * portfolio["change24h_percent"] / 100
     df_24h = portfolio.groupby("symbol")["pnl_24h"].sum().reset_index()
     fig_24h = px.bar(df_24h, x="symbol", y="pnl_24h", title="24h PnL by Asset")
     st.plotly_chart(fig_24h, use_container_width=True)
 else:
     st.info("⚠️ 24h 涨跌数据未提供，需在 fetch_prices() 中加入。")
+
 
 
 # 3. 最大回撤 + 稳定币占比
