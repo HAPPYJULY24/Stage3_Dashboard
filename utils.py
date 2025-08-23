@@ -19,28 +19,12 @@ def fetch_prices():
         
         df = pd.DataFrame(data)
 
-        # 打印调试用，看看实际字段
-        print("✅ OKX 返回字段:", df.columns.tolist())
+        # 保留核心字段
+        df = df[["instId", "last", "open24h"]].copy()
 
-        # 兼容字段名（有些可能是 open24h，有些是 open24H）
-        open_col = None
-        for c in df.columns:
-            if c.lower() == "open24h":
-                open_col = c
-                break
-        
-        if not {"instId", "last"}.issubset(df.columns) or open_col is None:
-            st.warning("⚠️ OKX 返回数据缺少 last/open24h，将使用买入价代替")
-            return pd.DataFrame(columns=["instId", "last", "open24h", "change24h_percent"])
-
-        # 只保留需要的列
-        df = df[["instId", "last", open_col]].copy()
-        df = df.rename(columns={open_col: "open24h"})
-
-        # 转换数值
+        # 转换为数值
         df["last"] = pd.to_numeric(df["last"], errors="coerce")
         df["open24h"] = pd.to_numeric(df["open24h"], errors="coerce")
-        df = df.dropna(subset=["last", "open24h"])
 
         # 计算 24h 涨跌幅
         df["change24h_percent"] = (df["last"] - df["open24h"]) / df["open24h"] * 100
@@ -50,7 +34,6 @@ def fetch_prices():
     except Exception as e:
         st.warning(f"⚠️ 无法获取 OKX 实时价格，将使用买入价代替 ({e})")
         return pd.DataFrame(columns=["instId", "last", "open24h", "change24h_percent"])
-
 
 
 # 构建组合数据
