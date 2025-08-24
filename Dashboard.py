@@ -2,8 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import requests
-import sys
-import os
+import sys, os
 from .utils import fetch_prices, build_portfolio
 from utils import send_alert
 
