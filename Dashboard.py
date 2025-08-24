@@ -2,9 +2,17 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import requests
+import sys
+import os
 from utils import fetch_prices, build_portfolio
 from utils import send_alert
 
+# 获取 Dust Hunters 根目录（Dashboard.py 的上两级目录）
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
+print(">>> sys.path:", sys.path[:3])  # 调试用，确认路径已加入
 
 # ========== 基础设置 ==========
 st.set_page_config(page_title="Crypto Dashboard", layout="wide")
@@ -33,7 +41,7 @@ holdings["amount"] = pd.to_numeric(holdings["amount"], errors="coerce")
 holdings["buy_price"] = pd.to_numeric(holdings["buy_price"], errors="coerce")
 
 # 合并最新价格
-portfolio = pd.merge(holdings, prices, left_on="symbol", right_on="instId", how="left")
+portfolio = pd.merge(holdings, prices, left_on="symbol", right_on="symbol", how="left")
 portfolio["last"] = portfolio["last"].fillna(portfolio["buy_price"])  # 如果价格缺失，用买入价代替
 portfolio["current_value"] = portfolio["amount"] * portfolio["last"]
 

@@ -12,34 +12,6 @@ CHAT_ID = os.getenv("CHAT_ID")
 CMC_API_KEY = os.getenv("CMC_API_KEY")
 
 
-# ========== OKX 实时价格 ==========
-@st.cache_data(ttl=60)
-def fetch_okx_prices():
-    url = "https://www.okx.com/api/v5/market/tickers?instType=SPOT"
-    try:
-        r = requests.get(url, timeout=10)
-        r.raise_for_status()
-        data = r.json().get("data", [])
-        if not data:
-            st.warning("⚠️ OKX API 返回空数据")
-            return pd.DataFrame(columns=["instId", "last", "open24h", "change24h_percent", "source"])
-
-        df = pd.DataFrame(data)
-        df = df[["instId", "last", "open24h"]].copy()
-        df["last"] = pd.to_numeric(df["last"], errors="coerce")
-        df["open24h"] = pd.to_numeric(df["open24h"], errors="coerce")
-        df["change24h_percent"] = (df["last"] - df["open24h"]) / df["open24h"] * 100
-        df["source"] = "OKX"
-
-        # 提取基础币 symbol
-        df["symbol"] = df["instId"].str.split("-").str[0]
-        return df
-
-    except Exception as e:
-        st.warning(f"⚠️ 无法获取 OKX 实时价格 ({e})")
-        return pd.DataFrame(columns=["instId", "last", "open24h", "change24h_percent", "source", "symbol"])
-
-
 # ========== CoinMarketCap 数据抓取 ==========
 @st.cache_data(ttl=300)
 def fetch_cmc_prices(limit: int = 500):
@@ -52,7 +24,7 @@ def fetch_cmc_prices(limit: int = 500):
         data = r.json().get("data", [])
         if not data:
             st.warning("⚠️ CMC 返回空数据")
-            return pd.DataFrame()
+            return pd.DataFrame(columns=["symbol", "name", "last", "open24h", "change24h_percent", "source"])
 
         df = pd.DataFrame([{
             "symbol": coin['symbol'],
@@ -66,20 +38,20 @@ def fetch_cmc_prices(limit: int = 500):
 
     except Exception as e:
         st.warning(f"⚠️ 无法获取 CMC 数据 ({e})")
-        return pd.DataFrame()
+        return pd.DataFrame(columns=["symbol", "name", "last", "open24h", "change24h_percent", "source"])
 
 
-# ========== 合并 OKX + CMC ==========
-def fetch_all_prices():
-    df_okx = fetch_okx_prices()
-    df_cmc = fetch_cmc_prices()
-    df_all = pd.concat([df_okx, df_cmc], ignore_index=True)
-    return df_all
+# ========== 用 CMC 作为唯一价格源 ==========
+def fetch_prices():
+    return fetch_cmc_prices()
 
 
-# 构建组合数据
+# ========== 构建组合数据 ==========
 def build_portfolio(holdings, prices):
-    # 用 symbol 对齐，而不是 instId
+    # 确保有 symbol 列
+    if "coin" in holdings.columns and "symbol" not in holdings.columns:
+        holdings = holdings.rename(columns={"coin": "symbol"})
+    
     merged = pd.merge(holdings, prices, on="symbol", how="left")
     merged["last"] = merged["last"].fillna(merged["buy_price"])
     merged["current_value"] = merged["amount"] * merged["last"]
@@ -94,6 +66,6 @@ def send_alert(msg: str):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     data = {"chat_id": CHAT_ID, "text": msg}
     try:
-        requests.post(url, data=data)
+        requests.post(url, data=data, timeout=10)
     except Exception as e:
         print(f"⚠️ Telegram 警报发送失败: {e}")
