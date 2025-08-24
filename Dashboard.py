@@ -4,7 +4,7 @@ import plotly.express as px
 import requests
 import sys
 import os
-from utils import fetch_prices, build_portfolio
+from .utils import fetch_prices, build_portfolio
 from utils import send_alert
 
 # 获取 Dust Hunters 根目录（Dashboard.py 的上两级目录）
